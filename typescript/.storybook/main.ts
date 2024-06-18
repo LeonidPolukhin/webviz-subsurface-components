@@ -72,7 +72,9 @@ const config: StorybookConfig = {
                     child_process: false,
                     worker_threads: false,
                 },
+                extensions: ['.tsx', '.ts', '...'],
             },
+            
         };
     },
     staticDirs: ["../../example-data"],

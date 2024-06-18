@@ -1,5 +1,6 @@
 import type { MeshType, MeshTypeLines } from "./privateGrid3dLayer";
 import type { WebWorkerParams } from "./grid3dLayer";
+import workerpool from "workerpool";
 
 export function makeFullMesh(e: { data: WebWorkerParams }) {
     class Node {
@@ -933,3 +934,7 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
 
     return [mesh, mesh_lines, [propertyValueRangeMin, propertyValueRangeMax]];
 }
+
+workerpool.worker({
+    makeFullMesh: makeFullMesh,
+});

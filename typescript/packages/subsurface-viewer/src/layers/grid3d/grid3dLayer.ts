@@ -17,7 +17,9 @@ import type {
     BoundingBox3D,
     ReportBoundingBoxAction,
 } from "../../components/Map";
-import { makeFullMesh } from "./webworker";
+
+//import { WorkerUrl } from "worker-url";
+//import { makeFullMesh } from "./webworker";
 
 import config from "../../SubsurfaceConfig.json";
 import { findConfig } from "../../utils/configTools";
@@ -28,6 +30,9 @@ const workerPoolConfig = findConfig(
     "config/workerpool",
     "config/layer/Grid3DLayer/workerpool"
 );
+
+const worker_url = new Worker(new URL("./webworker.ts", import.meta.url));
+worker_url;
 
 const pool = workerpool.pool({
     ...{
@@ -265,7 +270,7 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
                 properties,
             };
 
-            pool.exec(makeFullMesh, [{ data: webworkerParams }]).then((e) => {
+            pool.exec("makeFullMesh", [{ data: webworkerParams }]).then((e) => {
                 const [mesh, mesh_lines, propertyValueRange] = e;
                 const legend = {
                     discrete: false,
