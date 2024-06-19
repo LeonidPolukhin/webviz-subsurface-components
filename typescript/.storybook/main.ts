@@ -2,6 +2,8 @@ import { dirname, join } from "path";
 
 import type { StorybookConfig } from "@storybook/react-webpack5";
 
+import WorkerUrlPlugin from "worker-url/plugin"
+
 const config: StorybookConfig = {
     stories: [
         "../packages/*/src/**/*.mdx",
@@ -15,6 +17,9 @@ const config: StorybookConfig = {
         getAbsolutePath("@storybook/addon-webpack5-compiler-babel"),
     ],
     webpackFinal: async (config) => {
+        if (config.plugins) {
+            config.plugins.push (new WorkerUrlPlugin ());
+        }
         return {
             ...config,
             module: {

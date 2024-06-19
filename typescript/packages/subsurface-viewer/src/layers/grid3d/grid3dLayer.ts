@@ -18,7 +18,7 @@ import type {
     ReportBoundingBoxAction,
 } from "../../components/Map";
 
-//import { WorkerUrl } from "worker-url";
+import { WorkerUrl } from "worker-url";
 //import { makeFullMesh } from "./webworker";
 
 import config from "../../SubsurfaceConfig.json";
@@ -31,10 +31,9 @@ const workerPoolConfig = findConfig(
     "config/layer/Grid3DLayer/workerpool"
 );
 
-const worker_url = new Worker(new URL("./webworker.ts", import.meta.url));
-worker_url;
+const worker_url = new WorkerUrl(new URL("./webworker.ts", import.meta.url));
 
-const pool = workerpool.pool({
+const pool = workerpool.pool(worker_url.toString(), {
     ...{
         maxWorkers: 10,
         workerType: "web",
