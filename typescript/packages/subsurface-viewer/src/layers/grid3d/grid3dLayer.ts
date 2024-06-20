@@ -282,7 +282,7 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
             };
             const params = { data: webworkerParams};
             // { transfer: [params.data.points.buffer, params.data.polys.buffer, params.data.properties.buffer] }
-            pool.exec("makeFullMesh", [params], { transfer: [params.data.points.buffer, params.data.polys.buffer, params.data.properties.buffer] }).then((e) => {
+            pool.exec("makeFullMesh", [params]).then((e) => {
                 const [mesh, mesh_lines, propertyValueRange] = e ? this.createMeshes (e) : this.createEmptyMeshes ();
                 const legend = {
                     discrete: false,
@@ -313,6 +313,8 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
                 });
 
                 onTerminateWorker();
+            }).catch((error) => {
+                console.error(error);
             });
         });
     }
