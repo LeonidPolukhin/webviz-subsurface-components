@@ -33,9 +33,13 @@ export type WebWorkerParams = {
     properties: Float32Array | Uint16Array;
 };
 
-export type WebWorkerResult = {
-    isFinal: boolean;
-    mesh: MeshType;
-    meshLines: MeshTypeLines;
-    propertyRange: [number, number];
-};
+export interface IMeshArrays {
+    trianglePoints: Float32Array;
+    triangleNormals: Float32Array;
+    properties: Float32Array;
+    lineIndices: Uint32Array;
+}
+export interface IFullMesh extends IMeshArrays {
+    points: Float32Array;
+    propertyValueRange: [number, number];
+}

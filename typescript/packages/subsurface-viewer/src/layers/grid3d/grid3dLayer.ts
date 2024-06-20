@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import type React from "react";
 import { isEqual } from "lodash";
 
@@ -7,7 +8,7 @@ import { load, JSONLoader } from "@loaders.gl/core";
 
 import workerpool from "workerpool";
 
-import type { Material } from "./typeDefs";
+import type { IFullMesh, Material, MeshType, MeshTypeLines } from "./typeDefs";
 import PrivateLayer from "./privateGrid3dLayer";
 import type {
     ExtendedLayerProps,
@@ -279,9 +280,10 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
                 polys,
                 properties,
             };
-
-            pool.exec("makeFullMesh", [{ data: webworkerParams }]).then((e) => {
-                const [mesh, mesh_lines, propertyValueRange] = e;
+            const params = { data: webworkerParams};
+            // { transfer: [params.data.points.buffer, params.data.polys.buffer, params.data.properties.buffer] }
+            pool.exec("makeFullMesh", [params], { transfer: [params.data.points.buffer, params.data.polys.buffer, params.data.properties.buffer] }).then((e) => {
+                const [mesh, mesh_lines, propertyValueRange] = e ? this.createMeshes (e) : this.createEmptyMeshes ();
                 const legend = {
                     discrete: false,
                     valueRange: this.props.colorMapRange ?? propertyValueRange,
@@ -390,6 +392,58 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
                 return this.state["propertyValueRange"];
         }
     }
+
+    private createMeshes (meshData: IFullMesh) : [MeshType, MeshTypeLines, [number, number]] {
+       
+        const trianglesVertexCount = meshData.trianglePoints.length / 3;
+        const linesVertexCount = meshData.lineIndices.length;
+
+        const mesh: MeshType = {
+            drawMode: 4, // corresponds to GL.TRIANGLES,
+            attributes: {
+                positions: { value: meshData.trianglePoints, size: 3 },
+                properties: { value: meshData.properties, size: 1 },
+                normals: { value: meshData.triangleNormals, size: 3 },
+            },
+            vertexCount: trianglesVertexCount,
+        };
+
+        const mesh_lines: MeshTypeLines = {
+            drawMode: 1, // corresponds to GL.LINES,
+            attributes: {
+                positions: { value: meshData.points, size: 3 },
+                indices: { value: meshData.lineIndices, size: 1 },
+            },
+            vertexCount: linesVertexCount,
+        };
+        return [mesh, mesh_lines, meshData.propertyValueRange];        
+    }
+
+    private createEmptyMeshes () :  [MeshType, MeshTypeLines, [number, number]] {
+        const mesh: MeshType = {
+            drawMode: 4, // corresponds to GL.TRIANGLES,
+            attributes: {
+                positions: { value: new Float32Array(), size: 3 },
+                properties: { value: new Float32Array(), size: 1 },
+                normals: { value: new Float32Array(), size: 3 },
+            },
+            vertexCount: 0,
+        };
+
+        const mesh_lines: MeshTypeLines = {
+            drawMode: 1, // corresponds to GL.LINES,
+            attributes: {
+                positions: { value: new Float32Array(), size: 3 },
+                indices: { value: new Uint32Array(), size: 1 },
+            },
+            vertexCount: 0,
+        };
+        return [
+            mesh,
+            mesh_lines,  
+            [0, 0]          
+        ];
+    };
 }
 
 Grid3DLayer.layerName = "Grid3DLayer";
