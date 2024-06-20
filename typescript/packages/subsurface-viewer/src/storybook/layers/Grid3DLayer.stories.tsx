@@ -260,6 +260,36 @@ export const PolyhedralCells: StoryObj<typeof SubsurfaceViewer> = {
     parameters: parameters,
 };
 
+
+export const BigGrid: StoryObj<typeof SubsurfaceViewer> = {
+    args: {
+        bounds: [-2500, 2500, -5000, 5000] as NumberQuad,
+        views: {
+            layout: [1, 1] as [number, number],
+            viewports: [
+                {
+                    id: "view_1",
+                    show3D: true,
+                },
+            ],
+        },
+        id: "-big-grid-3d",
+        layers: [
+            {
+                ...grid3dLayer,
+                id: "big-grid",
+                coloringMode: TGrid3DColoringMode.Z,
+                pickable: true,
+                pointsData: "bigGrid/20xGullfacksBigGridPoints.bin",
+                polysData: "bigGrid/20xGullfacksBigGridPolys.bin",
+                propertiesData: [],
+                colorMapName: "Porosity",
+            },
+        ],
+    },
+    parameters: parameters,
+};
+
 // ---------In-place array data handling (storybook fails to rebuild non JSon data)--------------- //
 const discretePropsLayerId = "discrete_props";
 const layerArrays = {
