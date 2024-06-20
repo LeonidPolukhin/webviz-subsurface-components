@@ -58,7 +58,7 @@
         "mathjs": "^12.4.1",
         "merge-refs": "^1.2.2",
         "react-redux": "^8.1.1",
-        "workerpool": "^9.1.1"
+        "workerpool": "file:../../../../workerpool/workerpool-9.9.9999.tgz"
     },
     "peerDependencies": {
         "@mui/material": "^5.11",
