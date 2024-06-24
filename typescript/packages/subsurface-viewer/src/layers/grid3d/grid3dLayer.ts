@@ -261,60 +261,56 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
         return isLoaded && isFinished;
     }
 
-    rebuildData(reportBoundingBox: boolean): void {
-        const p = load_data(
+    async rebuildData(reportBoundingBox: boolean): Promise<void> {
+        const p = await load_data(
             this.props.pointsData,
             this.props.polysData,
             this.props.propertiesData,
             this.props.coloringMode === TGrid3DColoringMode.Property
         );
+        const [points, polys, properties] = p;
+        const bbox = GetBBox(points);
 
-        p.then(([points, polys, properties]) => {
-            const bbox = GetBBox(points);
+        // Using inline web worker for calculating the triangle mesh from
+        // loaded input data so not to halt the GUI thread.
 
-            // Using inline web worker for calculating the triangle mesh from
-            // loaded input data so not to halt the GUI thread.
+        const webworkerParams: WebWorkerParams = {
+            points,
+            polys,
+            properties,
+        };
 
-            const webworkerParams: WebWorkerParams = {
-                points,
-                polys,
-                properties,
-            };
+        const e = await pool.exec(makeFullMesh, [{ data: webworkerParams }]);
+        const [mesh, mesh_lines, propertyValueRange] = this.createMeshes(e);
+        const legend = {
+            discrete: false,
+            valueRange: this.props.colorMapRange ?? propertyValueRange,
+            colorName: this.props.colorMapName,
+            title: "MapLayer",
+            colorMapFunction: this.props.colorMapFunction,
+        };
 
-            pool.exec(makeFullMesh, [{ data: webworkerParams }]).then((e) => {
-                const [mesh, mesh_lines, propertyValueRange] =
-                    this.createMeshes(e);
-                const legend = {
-                    discrete: false,
-                    valueRange: this.props.colorMapRange ?? propertyValueRange,
-                    colorName: this.props.colorMapName,
-                    title: "MapLayer",
-                    colorMapFunction: this.props.colorMapFunction,
-                };
-
-                this.setState({
-                    mesh,
-                    mesh_lines,
-                    propertyValueRange,
-                    legend,
-                    bbox,
-                });
-
-                if (
-                    typeof this.props.reportBoundingBox !== "undefined" &&
-                    reportBoundingBox
-                ) {
-                    this.props.reportBoundingBox({ layerBoundingBox: bbox });
-                }
-
-                this.setState({
-                    ...this.state,
-                    isFinishedLoading: true,
-                });
-
-                onTerminateWorker();
-            });
+        this.setState({
+            mesh,
+            mesh_lines,
+            propertyValueRange,
+            legend,
+            bbox,
         });
+
+        if (
+            typeof this.props.reportBoundingBox !== "undefined" &&
+            reportBoundingBox
+        ) {
+            this.props.reportBoundingBox({ layerBoundingBox: bbox });
+        }
+
+        this.setState({
+            ...this.state,
+            isFinishedLoading: true,
+        });
+
+        onTerminateWorker();
     }
 
     initializeState(): void {
