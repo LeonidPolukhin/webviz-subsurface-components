@@ -33,7 +33,7 @@ export type WebWorkerParams = {
     properties: Float32Array | Uint16Array;
 };
 
-export type AttributesData = {
+export interface IAttributesData {
     trianglePositions: Float32Array;
     triangleNormals: Float32Array;
     triangleVertexCount: number;

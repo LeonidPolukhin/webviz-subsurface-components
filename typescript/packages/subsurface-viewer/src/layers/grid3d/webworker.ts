@@ -1,9 +1,9 @@
-import type { AttributesData } from "./typeDefs";
-import type { WebWorkerParams } from "./grid3dLayer";
+/* eslint-disable prettier/prettier */
+import type { WebWorkerParams } from "./typeDefs";
 
 export function makeFullMesh(e: {
     data: WebWorkerParams;
-}): AttributesData | null {
+}): void {
     class Node {
         i: number;
         x: number;
@@ -933,7 +933,8 @@ export function makeFullMesh(e: {
     const meshArrays = createMeshArrays(counts);
 
     if (!meshArrays?.arrays) {
-        return null;
+        postMessage(null);
+        return;
     }
 
     let arraysIndex = 0;
@@ -1017,7 +1018,7 @@ export function makeFullMesh(e: {
         //Keep this.
         console.log(`Task makeMesh took ${(t1 - t0) * 0.001}  seconds.`);
 
-        return {
+        const attributesData = {
             trianglePositions: meshArrays.arrays.trianglePoints,
             triangleNormals: meshArrays.arrays.triangleNormals,
             triangleVertexCount: trianglesVertexCount,
@@ -1027,10 +1028,11 @@ export function makeFullMesh(e: {
             lineVertexCount: linesVertexCount,
 
             propertyValues: meshArrays.arrays.properties,
-            propertyValueRange: [propertyValueRangeMin, propertyValueRangeMax],
+            propertyValueRange: [propertyValueRangeMin, propertyValueRangeMax],            
         };
+        postMessage(attributesData);
     } catch (error) {
         console.log("Grid3d webworker failed with error: ", error);
-        return null;
+        postMessage(null);
     }
 }

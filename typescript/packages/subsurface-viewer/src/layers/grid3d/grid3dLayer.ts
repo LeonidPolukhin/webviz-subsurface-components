@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import type React from "react";
 import { isEqual } from "lodash";
 
@@ -5,13 +6,12 @@ import type { Color } from "@deck.gl/core/typed";
 import { CompositeLayer } from "@deck.gl/core/typed";
 import { load, JSONLoader } from "@loaders.gl/core";
 
-import workerpool from "workerpool";
-
 import type {
-    AttributesData,
+    IAttributesData,
     Material,
     MeshType,
     MeshTypeLines,
+    WebWorkerParams,
 } from "./typeDefs";
 import PrivateLayer from "./privateGrid3dLayer";
 import type {
@@ -23,37 +23,6 @@ import type {
     ReportBoundingBoxAction,
 } from "../../components/Map";
 import { makeFullMesh } from "./webworker";
-
-import config from "../../SubsurfaceConfig.json";
-import { findConfig } from "../../utils/configTools";
-
-// init workerpool
-const workerPoolConfig = findConfig(
-    config,
-    "config/workerpool",
-    "config/layer/Grid3DLayer/workerpool"
-);
-
-const pool = workerpool.pool({
-    ...{
-        maxWorkers: 10,
-        workerType: "web",
-    },
-    ...workerPoolConfig,
-});
-
-function onTerminateWorker() {
-    const stats = pool.stats();
-    if (stats.busyWorkers === 0 && stats.pendingTasks === 0) {
-        pool.terminate();
-    }
-}
-
-export type WebWorkerParams = {
-    points: Float32Array;
-    polys: Uint32Array;
-    properties: Float32Array | Uint16Array;
-};
 
 function GetBBox(points: Float32Array): BoundingBox3D {
     let xmax = -99999999;
@@ -280,37 +249,45 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
             properties,
         };
 
-        const e = await pool.exec(makeFullMesh, [{ data: webworkerParams }]);
-        const [mesh, mesh_lines, propertyValueRange] = this.createMeshes(e);
-        const legend = {
-            discrete: false,
-            valueRange: this.props.colorMapRange ?? propertyValueRange,
-            colorName: this.props.colorMapName,
-            title: "MapLayer",
-            colorMapFunction: this.props.colorMapFunction,
+        const blob = new Blob(["self.onmessage = ", makeFullMesh.toString()], {
+            type: "text/javascript",
+        });
+        const url = URL.createObjectURL(blob);
+        const webWorker = new Worker(url);
+
+        webWorker.postMessage(webworkerParams);
+        webWorker.onmessage = (e: unknown) => {
+            const attrData = this.isAttributesData(e) ? e.data : null;
+            const [mesh, mesh_lines, propertyValueRange] = this.createMeshes(attrData);
+            const legend = {
+                discrete: false,
+                valueRange: this.props.colorMapRange ?? propertyValueRange,
+                colorName: this.props.colorMapName,
+                title: "MapLayer",
+                colorMapFunction: this.props.colorMapFunction,
+            };
+
+            this.setState({
+                mesh,
+                mesh_lines,
+                propertyValueRange,
+                legend,
+                bbox,
+            });
+
+            if (
+                typeof this.props.reportBoundingBox !== "undefined" &&
+                reportBoundingBox
+            ) {
+                this.props.reportBoundingBox({ layerBoundingBox: bbox });
+            }
+
+            this.setState({
+                ...this.state,
+                isFinishedLoading: true,
+            });
+            webWorker.terminate ();
         };
-
-        this.setState({
-            mesh,
-            mesh_lines,
-            propertyValueRange,
-            legend,
-            bbox,
-        });
-
-        if (
-            typeof this.props.reportBoundingBox !== "undefined" &&
-            reportBoundingBox
-        ) {
-            this.props.reportBoundingBox({ layerBoundingBox: bbox });
-        }
-
-        this.setState({
-            ...this.state,
-            isFinishedLoading: true,
-        });
-
-        onTerminateWorker();
     }
 
     initializeState(): void {
@@ -389,8 +366,15 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
         }
     }
 
+    private isAttributesData (e: unknown): e is { data: IAttributesData | null} {
+        if (e && typeof e === "object" && "data" in e) {
+            return true;
+        }
+        return false;
+    }
+
     private createMeshes(
-        data: AttributesData | null
+        data: IAttributesData | null
     ): [MeshType, MeshTypeLines, [number, number]] {
         if (!data) {
             return this.createEmptyMesh();
