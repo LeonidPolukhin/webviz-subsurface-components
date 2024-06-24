@@ -7,7 +7,12 @@ import { load, JSONLoader } from "@loaders.gl/core";
 
 import workerpool from "workerpool";
 
-import type { Material } from "./typeDefs";
+import type {
+    AttributesData,
+    Material,
+    MeshType,
+    MeshTypeLines,
+} from "./typeDefs";
 import PrivateLayer from "./privateGrid3dLayer";
 import type {
     ExtendedLayerProps,
@@ -277,7 +282,8 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
             };
 
             pool.exec(makeFullMesh, [{ data: webworkerParams }]).then((e) => {
-                const [mesh, mesh_lines, propertyValueRange] = e;
+                const [mesh, mesh_lines, propertyValueRange] =
+                    this.createMeshes(e);
                 const legend = {
                     discrete: false,
                     valueRange: this.props.colorMapRange ?? propertyValueRange,
@@ -385,6 +391,59 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
             default:
                 return this.state["propertyValueRange"];
         }
+    }
+
+    private createMeshes(
+        data: AttributesData | null
+    ): [MeshType, MeshTypeLines, [number, number]] {
+        if (!data) {
+            return this.createEmptyMesh();
+        }
+        const mesh: MeshType = {
+            drawMode: 4, // corresponds to GL.TRIANGLES,
+            attributes: {
+                positions: { value: data.trianglePositions, size: 3 },
+                properties: { value: data.propertyValues, size: 1 },
+                normals: { value: data.triangleNormals, size: 3 },
+            },
+            vertexCount: data.triangleVertexCount,
+        };
+
+        const mesh_lines: MeshTypeLines = {
+            drawMode: 1, // corresponds to GL.LINES,
+            attributes: {
+                positions: { value: data.linePositions, size: 3 },
+                indices: { value: data.lineIndices, size: 1 },
+            },
+            vertexCount: data.lineVertexCount,
+        };
+        return [mesh, mesh_lines, data.propertyValueRange];
+    }
+
+    /**
+     * Creates empty meshes.
+     * @returns Empty meshes with empty data arrays and zero vertex counts.
+     */
+    private createEmptyMesh(): [MeshType, MeshTypeLines, [number, number]] {
+        const mesh: MeshType = {
+            drawMode: 4, // corresponds to GL.TRIANGLES,
+            attributes: {
+                positions: { value: new Float32Array(), size: 3 },
+                properties: { value: new Float32Array(), size: 1 },
+                normals: { value: new Float32Array(), size: 3 },
+            },
+            vertexCount: 0,
+        };
+
+        const mesh_lines: MeshTypeLines = {
+            drawMode: 1, // corresponds to GL.LINES,
+            attributes: {
+                positions: { value: new Float32Array(), size: 3 },
+                indices: { value: new Uint32Array(), size: 1 },
+            },
+            vertexCount: 0,
+        };
+        return [mesh, mesh_lines, [0, 0]];
     }
 }
 

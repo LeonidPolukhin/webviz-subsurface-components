@@ -1,7 +1,9 @@
-import type { MeshType, MeshTypeLines } from "./typeDefs";
+import type { AttributesData } from "./typeDefs";
 import type { WebWorkerParams } from "./grid3dLayer";
 
-export function makeFullMesh(e: { data: WebWorkerParams }) {
+export function makeFullMesh(e: {
+    data: WebWorkerParams;
+}): AttributesData | null {
     class Node {
         i: number;
         x: number;
@@ -913,36 +915,6 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
         };
     };
 
-    /**
-     * Creates empty meshes.
-     * @returns Empty meshes with empty data arrays and zero vertex counts.
-     */
-    const createEmptyMeshes = () => {
-        const mesh: MeshType = {
-            drawMode: 4, // corresponds to GL.TRIANGLES,
-            attributes: {
-                positions: { value: new Float32Array(), size: 3 },
-                properties: { value: new Float32Array(), size: 1 },
-                normals: { value: new Float32Array(), size: 3 },
-            },
-            vertexCount: 0,
-        };
-
-        const mesh_lines: MeshTypeLines = {
-            drawMode: 1, // corresponds to GL.LINES,
-            attributes: {
-                positions: { value: new Float32Array(), size: 3 },
-                indices: { value: new Uint32Array(), size: 1 },
-            },
-            vertexCount: 0,
-        };
-        return [
-            mesh,
-            mesh_lines,
-            [propertyValueRangeMin, propertyValueRangeMax],
-        ];
-    };
-
     // Keep
     const t0 = performance.now();
 
@@ -961,7 +933,7 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
     const meshArrays = createMeshArrays(counts);
 
     if (!meshArrays?.arrays) {
-        return createEmptyMeshes();
+        return null;
     }
 
     let arraysIndex = 0;
@@ -1041,36 +1013,24 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
         console.log("Number of polygons: ", pn);
         console.log("Number of triangles: ", meshArrays.counts.triangles);
 
-        const mesh: MeshType = {
-            drawMode: 4, // corresponds to GL.TRIANGLES,
-            attributes: {
-                positions: { value: meshArrays.arrays.trianglePoints, size: 3 },
-                properties: { value: meshArrays.arrays.properties, size: 1 },
-                normals: { value: meshArrays.arrays.triangleNormals, size: 3 },
-            },
-            vertexCount: trianglesVertexCount,
-        };
-
-        const mesh_lines: MeshTypeLines = {
-            drawMode: 1, // corresponds to GL.LINES,
-            attributes: {
-                positions: { value: params.points, size: 3 },
-                indices: { value: meshArrays.arrays.lineIndices, size: 1 },
-            },
-            vertexCount: linesVertexCount,
-        };
-
         const t1 = performance.now();
         //Keep this.
         console.log(`Task makeMesh took ${(t1 - t0) * 0.001}  seconds.`);
 
-        return [
-            mesh,
-            mesh_lines,
-            [propertyValueRangeMin, propertyValueRangeMax],
-        ];
+        return {
+            trianglePositions: meshArrays.arrays.trianglePoints,
+            triangleNormals: meshArrays.arrays.triangleNormals,
+            triangleVertexCount: trianglesVertexCount,
+
+            linePositions: params.points,
+            lineIndices: meshArrays.arrays.lineIndices,
+            lineVertexCount: linesVertexCount,
+
+            propertyValues: meshArrays.arrays.properties,
+            propertyValueRange: [propertyValueRangeMin, propertyValueRangeMax],
+        };
     } catch (error) {
         console.log("Grid3d webworker failed with error: ", error);
-        return createEmptyMeshes();
+        return null;
     }
 }

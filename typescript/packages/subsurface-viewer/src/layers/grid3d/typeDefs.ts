@@ -33,9 +33,13 @@ export type WebWorkerParams = {
     properties: Float32Array | Uint16Array;
 };
 
-export type WebWorkerResult = {
-    isFinal: boolean;
-    mesh: MeshType;
-    meshLines: MeshTypeLines;
-    propertyRange: [number, number];
+export type AttributesData = {
+    trianglePositions: Float32Array;
+    triangleNormals: Float32Array;
+    triangleVertexCount: number;
+    linePositions: Float32Array;
+    lineIndices: Uint32Array;
+    lineVertexCount: number;
+    propertyValues: Float32Array;
+    propertyValueRange: [number, number];
 };
