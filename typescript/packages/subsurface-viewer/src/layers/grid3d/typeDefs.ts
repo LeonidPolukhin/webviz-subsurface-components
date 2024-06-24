@@ -37,9 +37,10 @@ export interface IAttributesData {
     trianglePositions: Float32Array;
     triangleNormals: Float32Array;
     triangleVertexCount: number;
-    linePositions: Float32Array;
+
     lineIndices: Uint32Array;
     lineVertexCount: number;
+
     propertyValues: Float32Array;
     propertyValueRange: [number, number];
-};
+}

@@ -1021,16 +1021,19 @@ export function makeFullMesh(e: {
         const attributesData = {
             trianglePositions: meshArrays.arrays.trianglePoints,
             triangleNormals: meshArrays.arrays.triangleNormals,
-            triangleVertexCount: trianglesVertexCount,
-
-            linePositions: params.points,
+            triangleVertexCount: trianglesVertexCount,            
             lineIndices: meshArrays.arrays.lineIndices,
             lineVertexCount: linesVertexCount,
 
             propertyValues: meshArrays.arrays.properties,
             propertyValueRange: [propertyValueRangeMin, propertyValueRangeMax],            
         };
-        postMessage(attributesData);
+        (self as DedicatedWorkerGlobalScope).postMessage(attributesData, [
+            attributesData.trianglePositions.buffer,
+            attributesData.triangleNormals.buffer,            
+            attributesData.lineIndices.buffer,
+            attributesData.propertyValues.buffer
+        ]);
     } catch (error) {
         console.log("Grid3d webworker failed with error: ", error);
         postMessage(null);

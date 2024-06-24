@@ -237,12 +237,10 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
             this.props.propertiesData,
             this.props.coloringMode === TGrid3DColoringMode.Property
         );
-        const [points, polys, properties] = p;
-        const bbox = GetBBox(points);
+        const [points, polys, properties] = p;        
 
         // Using inline web worker for calculating the triangle mesh from
         // loaded input data so not to halt the GUI thread.
-
         const webworkerParams: WebWorkerParams = {
             points,
             polys,
@@ -254,40 +252,17 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
         });
         const url = URL.createObjectURL(blob);
         const webWorker = new Worker(url);
-
-        webWorker.postMessage(webworkerParams);
-        webWorker.onmessage = (e: unknown) => {
-            const attrData = this.isAttributesData(e) ? e.data : null;
-            const [mesh, mesh_lines, propertyValueRange] = this.createMeshes(attrData);
-            const legend = {
-                discrete: false,
-                valueRange: this.props.colorMapRange ?? propertyValueRange,
-                colorName: this.props.colorMapName,
-                title: "MapLayer",
-                colorMapFunction: this.props.colorMapFunction,
+        try {        
+            webWorker.onmessage = (e: unknown) => {
+                this.onWebworkerMessage(e, points, reportBoundingBox);
+                webWorker.terminate ();
             };
-
-            this.setState({
-                mesh,
-                mesh_lines,
-                propertyValueRange,
-                legend,
-                bbox,
-            });
-
-            if (
-                typeof this.props.reportBoundingBox !== "undefined" &&
-                reportBoundingBox
-            ) {
-                this.props.reportBoundingBox({ layerBoundingBox: bbox });
-            }
-
-            this.setState({
-                ...this.state,
-                isFinishedLoading: true,
-            });
-            webWorker.terminate ();
-        };
+            webWorker.postMessage(webworkerParams);
+        } catch (error) {
+            console.error (error);
+            this.onWebworkerMessage(null, points, reportBoundingBox);
+            webWorker.terminate();
+        }
     }
 
     initializeState(): void {
@@ -373,8 +348,43 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
         return false;
     }
 
+    private onWebworkerMessage (e: unknown, points: Float32Array, reportBoundingBox: boolean) {
+
+        const bbox = GetBBox(points);
+        const attrData = this.isAttributesData(e) ? e.data : null;
+        const [mesh, mesh_lines, propertyValueRange] = this.createMeshes(attrData, points);
+        const legend = {
+            discrete: false,
+            valueRange: this.props.colorMapRange ?? propertyValueRange,
+            colorName: this.props.colorMapName,
+            title: "MapLayer",
+            colorMapFunction: this.props.colorMapFunction,
+        };
+
+        this.setState({
+            mesh,
+            mesh_lines,
+            propertyValueRange,
+            legend,
+            bbox,                
+        });
+
+        if (
+            typeof this.props.reportBoundingBox !== "undefined" &&
+            reportBoundingBox
+        ) {
+            this.props.reportBoundingBox({ layerBoundingBox: bbox });
+        }
+
+        this.setState({
+            ...this.state,
+            isFinishedLoading: true,
+        });
+    }
+
     private createMeshes(
-        data: IAttributesData | null
+        data: IAttributesData | null,
+        points: Float32Array
     ): [MeshType, MeshTypeLines, [number, number]] {
         if (!data) {
             return this.createEmptyMesh();
@@ -392,7 +402,7 @@ export default class Grid3DLayer extends CompositeLayer<Grid3DLayerProps> {
         const mesh_lines: MeshTypeLines = {
             drawMode: 1, // corresponds to GL.LINES,
             attributes: {
-                positions: { value: data.linePositions, size: 3 },
+                positions: { value: points, size: 3 },
                 indices: { value: data.lineIndices, size: 1 },
             },
             vertexCount: data.lineVertexCount,
