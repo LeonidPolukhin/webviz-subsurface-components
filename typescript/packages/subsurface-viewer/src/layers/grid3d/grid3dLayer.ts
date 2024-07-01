@@ -32,7 +32,7 @@ const workerPoolConfig = findConfig(
     "config/layer/Grid3DLayer/workerpool"
 );
 
-const worker_url = new WorkerUrl(new URL("./webworker.ts", import.meta.url));
+const worker_url = new WorkerUrl(new URL("./webworker.js", import.meta.url));
 
 const pool = workerpool.pool(worker_url.toString(), {
     ...{

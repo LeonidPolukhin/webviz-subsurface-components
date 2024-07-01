@@ -1,20 +1,16 @@
-/* eslint-disable prettier/prettier */
-import type { IMeshArrays } from "./typeDefs";
-import type { WebWorkerParams } from "./grid3dLayer";
 import workerpool from "workerpool";
 import earcut from "earcut";
 
-export function makeFullMesh(e: { data: WebWorkerParams }) {
-
-    const get3DPoint = (points: number[], index: number): number[] => {
+export function makeFullMesh(e) {
+    const get3DPoint = (points, index) => {
         return points.slice(index * 3, (index + 1) * 3);
     };
 
-    const substractPoints = (a: number[], b: number[]): number[] => {
+    const substractPoints = (a, b) => {
         return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
     };
 
-    const crossProduct = (a: number[], b: number[]): number[] => {
+    const crossProduct = (a, b) => {
         return [
             a[1] * b[2] - a[2] * b[1],
             a[2] * b[0] - a[0] * b[2],
@@ -22,11 +18,11 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
         ];
     };
 
-    const dotProduct = (a: number[], b: number[]): number => {
+    const dotProduct = (a, b) => {
         return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     };
 
-    const normalize = (a: number[]): number[] => {
+    const normalize = (a) => {
         const len = Math.sqrt(dotProduct(a, a));
         return [a[0] / len, a[1] / len, a[2] / len];
     };
@@ -38,7 +34,7 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
      * @param p the point to be projected as [x, y, z] triplet.
      * @returns projected point as [x, y] triplet.
      */
-    const projectPoint = (u: number[], v: number[], p: number[]): number[] => {
+    const projectPoint = (u, v, p) => {
         const a = dotProduct(p, u);
         const b = dotProduct(p, v);
         return [a, b];
@@ -50,7 +46,7 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
      * @param points Polygon to be projected.
      * @returns Projected polygon in the 2D coordinate system of the plane.
      */
-    const projectPolygon = (points: number[]): number[] => {
+    const projectPolygon = (points) => {
         const p0 = get3DPoint(points, 0);
         const p1 = get3DPoint(points, 1);
         const p2 = get3DPoint(points, 2);
@@ -59,7 +55,7 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
         const normal = normalize(crossProduct(v1, v2));
         const u = normalize(v1);
         const v = normalize(crossProduct(normal, u));
-        const res: number[] = [];
+        const res = [];
         const count = points.length / 3;
         for (let i = 0; i < count; ++i) {
             const p = get3DPoint(points, i);
@@ -69,7 +65,7 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
         return res;
     };
 
-    const averageNormal = (points: number[], triangles: number[]): number[] => {
+    const averageNormal = (points, triangles) => {
         const res = [0, 0, 0];
 
         for (let i = 0; i < triangles.length; i += 3) {
@@ -87,18 +83,13 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
         return normalize(res);
     };
 
-    interface IPrimitiveCounts {
-        triangles: number;
-        lineSegments: number;
-    }
-
     /**
      * Computes number of WebGL primitives needed to represent a grid mesh.
      * @param polys Array describing face polygons in the format [N0, I00, I01, I02.., N1, I10, I12...] where
      * Ni - number of vertices in the i-th polygon. Iij - index of j-th vertex of i-th polygon.
      * @returns Object contaning the number of triangles and 2-point line segments.
      */
-    const getPrimitiveCounts = (polys: Uint32Array): IPrimitiveCounts => {
+    const getPrimitiveCounts = (polys) => {
         let triangles = 0;
         let lineSegments = 0;
         let i = 0;
@@ -117,7 +108,7 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
      * @param counts Numbers of WebGL primitives.
      * @returns Arrays of the length enough to contain WebGL data for the given number of primitives, null otherwise.
      */
-    const tryCreateArrays = (counts: IPrimitiveCounts): IMeshArrays | null => {
+    const tryCreateArrays = (counts) => {
         try {
             const trianglePoints = new Float32Array(counts.triangles * 9); // 3 points * 3 coordinates per point per 1 triangle
             const triangleNormals = new Float32Array(counts.triangles * 9); // 3 points * 3 coordinates per point per 1 triangle
@@ -142,27 +133,27 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
      * If fails, reduces the number of primitives by 10% and tries again. Null is returned if zero count of primitives reached.
      * Counts returned contain the actual number of primitives the arrays are created for.
      */
-    const createMeshArrays = (
-        counts: IPrimitiveCounts
-    ): { arrays: IMeshArrays | null; counts: IPrimitiveCounts } | null => {
+    const createMeshArrays = (counts) => {
         const currentCounts = {
             ...counts,
         };
-        let res: IMeshArrays | null = null;
+        let res = null;
         do {
             res = tryCreateArrays(currentCounts);
             if (res === null) {
-                console.warn(`Traingles count is reduced from ${currentCounts.triangles} to ${currentCounts.triangles - counts.triangles * 0.1}`);
+                console.warn(
+                    `Traingles count is reduced from ${currentCounts.triangles} to ${currentCounts.triangles - counts.triangles * 0.1}`
+                );
                 currentCounts.triangles -= Math.floor(counts.triangles * 0.1);
-                currentCounts.lineSegments -= Math.floor(counts.lineSegments * 0.1);
-                
+                currentCounts.lineSegments -= Math.floor(
+                    counts.lineSegments * 0.1
+                );
             }
         } while (res === null && currentCounts.triangles > 0);
         console.log("Resulting primitives counts: ", currentCounts);
         return {
             arrays: res,
             counts: currentCounts,
-
         };
     };
     // Keep
@@ -220,7 +211,7 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
             meshArrays.arrays.lineIndices[linesIndex + 1] = polys[i + n];
             linesIndex += 2;
 
-            const polygon: number[] = [];
+            const polygon = [];
 
             for (let p = 1; p <= n; ++p) {
                 const i0 = polys[i + p];
@@ -234,7 +225,7 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
             // As the triangulation algorythm works in 2D space
             // the polygon should be projected on the plane passing through its points.
             const flatPoly = projectPolygon(polygon);
-            const triangles: number[] = earcut(flatPoly);
+            const triangles = earcut(flatPoly);
 
             const normal = averageNormal(polygon, triangles);
 
@@ -277,8 +268,7 @@ export function makeFullMesh(e: { data: WebWorkerParams }) {
             data.properties.buffer,
             data.points.buffer,
             data.lineIndices.buffer,
-        ])
-        
+        ]);
     } catch (error) {
         console.log("Grid3d webworker failed with error: ", error);
         return null;
